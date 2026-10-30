@@ -12,5 +12,5 @@ resources:
 # The pipeline replaces newName/newTag with the image it has just built and pushed.
 images:
   - name: finsecure-transaction-validator
-    newName: docker.io/YOUR_DOCKERHUB_USERNAME/finsecure-transaction-validator
+    newName: docker.io/yupardocker/finsecure-transaction-validator
     newTag: "1.0.0"

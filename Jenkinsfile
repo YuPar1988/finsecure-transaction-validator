@@ -22,7 +22,7 @@ pipeline {
     }
 
     environment {
-        DOCKER_REPO      = "${env.DOCKERHUB_REPO ?: 'YOUR_DOCKERHUB_USERNAME/finsecure-transaction-validator'}"
+        DOCKER_REPO      = "${env.DOCKERHUB_REPO ?: 'yupardocker/finsecure-transaction-validator'}"
         K8S_NAMESPACE    = 'finsecure'
         K8S_DEPLOYMENT   = 'transaction-validator'
         K8S_SERVICE      = 'finsecure-app'
