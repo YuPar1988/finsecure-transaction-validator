@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf != null} ? ${_csrf.token} : ''">
+    <title th:text="${title} + ' | FinSecure Pay'">FinSecure Pay</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+
+<aside class="sidebar" th:fragment="sidebar">
+    <div class="brand">FinSecure Pay<small>Transaction Validator</small></div>
+    <a th:href="@{/dashboard}" th:classappend="${active == 'dashboard'} ? 'active'">Dashboard</a>
+    <a th:href="@{/logs}" th:classappend="${active == 'logs'} ? 'active'">API Request Logs</a>
+    <a th:href="@{/monitoring}" th:classappend="${active == 'monitoring'} ? 'active'">API Monitoring</a>
+    <a th:href="@{/tester}" th:classappend="${active == 'tester'} ? 'active'">API Tester</a>
+    <div class="meta">
+        <div>Version <span th:text="${appInfo.version}">1.0.0</span></div>
+        <div th:if="${!#strings.isEmpty(appInfo.imageTag)}">Image <span th:text="${appInfo.imageTag}"></span></div>
+        <div>Env <span th:text="${appInfo.environment}">local</span></div>
+        <div>Pod <span th:text="${appInfo.podName}">local</span></div>
+    </div>
+</aside>
+
+<div class="topbar" th:fragment="topbar(title)">
+    <h1 th:text="${title}">Title</h1>
+    <div class="user">
+        <span>Signed in as <strong sec:authentication="name">admin</strong></span>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="btn secondary">Sign out</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

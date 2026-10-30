@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('API Tester')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <main class="main" id="tester" th:attr="data-validate=@{/validate}, data-health=@{/health}, data-log-url=@{/logs/request/}">
+        <div th:replace="~{fragments/layout :: topbar('API Tester')}"></div>
+
+        <section class="grid halves">
+            <div class="card">
+                <h2>Request</h2>
+                <p class="sub">POST /validate with a JSON transaction. Pick a sample or edit the body.</p>
+                <div class="filters">
+                    <button type="button" class="btn secondary" data-sample="valid">Valid</button>
+                    <button type="button" class="btn secondary" data-sample="highRisk">High value</button>
+                    <button type="button" class="btn secondary" data-sample="overLimit">Over limit</button>
+                    <button type="button" class="btn secondary" data-sample="currency">Bad currency</button>
+                    <button type="button" class="btn secondary" data-sample="blocked">Blocked country</button>
+                    <button type="button" class="btn secondary" data-sample="badAccount">Bad account</button>
+                    <button type="button" class="btn secondary" data-sample="duplicate">Duplicate</button>
+                    <button type="button" class="btn secondary" data-sample="malformed">Malformed JSON</button>
+                </div>
+                <textarea id="body" spellcheck="false" class="mono" aria-label="Request body"></textarea>
+                <div class="filters" style="margin-top:12px">
+                    <button type="button" class="btn" id="send">Send request</button>
+                    <button type="button" class="btn secondary" id="health">GET /health</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Response</h2>
+                <p class="sub" id="meta">No request sent yet.</p>
+                <pre class="code" id="response">(empty)</pre>
+                <p class="sub" style="margin-top:10px" id="log-link"></p>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Traffic generator</h2>
+            <p class="sub">Send a batch of random transactions to populate the dashboard or to trigger the rejection-rate alert.</p>
+            <div class="filters">
+                <div class="field">
+                    <label for="count">Requests</label>
+                    <input id="count" type="number" min="1" max="500" value="25">
+                </div>
+                <div class="field">
+                    <label for="mix">Rejected share</label>
+                    <select id="mix">
+                        <option value="0.1">About 10% rejected</option>
+                        <option value="0.5">About 50% rejected</option>
+                        <option value="0.9">About 90% rejected (alert)</option>
+                    </select>
+                </div>
+                <button type="button" class="btn" id="batch">Run batch</button>
+                <span class="tile hint" id="batch-status"></span>
+            </div>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/tester.js}"></script>
+</body>
+</html>

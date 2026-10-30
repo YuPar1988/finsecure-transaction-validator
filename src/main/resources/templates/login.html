@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Sign in')}"></head>
+<body class="login-page">
+<main class="login-card">
+    <h1>FinSecure Pay</h1>
+    <p class="sub">Sign in to the API operations dashboard</p>
+
+    <div class="alert error" th:if="${param.error}">Invalid username or password.</div>
+    <div class="alert info" th:if="${param.logout}">You have been signed out.</div>
+
+    <form th:action="@{/login}" method="post">
+        <div class="field">
+            <label for="username">Username</label>
+            <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+        </div>
+        <div class="field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn">Sign in</button>
+    </form>
+</main>
+</body>
+</html>

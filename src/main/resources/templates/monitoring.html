@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('API Monitoring')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <main class="main" id="monitoring" th:attr="data-endpoint=@{/monitoring/data}">
+        <div th:replace="~{fragments/layout :: topbar('API Monitoring')}"></div>
+
+        <div class="filters">
+            <span class="pill" id="m-status-pill"
+                  th:classappend="${snapshot.status == 'UP'} ? 'good' : 'critical'"
+                  th:text="'Application ' + ${snapshot.status}">Application UP</span>
+            <span class="tile hint" id="m-refreshed">Auto-refresh every 10 seconds</span>
+            <a class="btn secondary" th:if="${!#strings.isEmpty(snapshot.grafanaUrl)}" th:href="${snapshot.grafanaUrl}" target="_blank" rel="noopener">Open Grafana</a>
+            <a class="btn secondary" th:if="${!#strings.isEmpty(snapshot.prometheusUrl)}" th:href="${snapshot.prometheusUrl}" target="_blank" rel="noopener">Open Prometheus</a>
+        </div>
+
+        <section class="grid tiles">
+            <div class="card tile">
+                <div class="label">Uptime</div>
+                <div class="value" id="m-uptime" th:text="${snapshot.uptime}">0m</div>
+                <div class="hint">Pod <span id="m-pod" th:text="${snapshot.pod}">local</span></div>
+            </div>
+            <div class="card tile">
+                <div class="label">Heap memory</div>
+                <div class="value"><span id="m-heap" th:text="${snapshot.heapUsedMb}">0</span> MB</div>
+                <div class="hint"><span id="m-heap-pct" th:text="${snapshot.heapPercent}">0</span>% of <span id="m-heap-max" th:text="${snapshot.heapMaxMb}">0</span> MB</div>
+            </div>
+            <div class="card tile">
+                <div class="label">Process CPU</div>
+                <div class="value"><span id="m-cpu" th:text="${snapshot.processCpuPercent}">0</span>%</div>
+                <div class="hint">System <span id="m-sys-cpu" th:text="${snapshot.systemCpuPercent}">0</span>%</div>
+            </div>
+            <div class="card tile">
+                <div class="label">Threads / DB connections</div>
+                <div class="value"><span id="m-threads" th:text="${snapshot.liveThreads}">0</span> / <span id="m-db" th:text="${snapshot.dbActiveConnections}">0</span></div>
+                <div class="hint"><span id="m-db-idle" th:text="${snapshot.dbIdleConnections}">0</span> idle connections</div>
+            </div>
+            <div class="card tile">
+                <div class="label">Transactions (this pod)</div>
+                <div class="value"><span id="m-approved" th:text="${snapshot.approvedTotal}">0</span> / <span id="m-rejected" th:text="${snapshot.rejectedTotal}">0</span></div>
+                <div class="hint">approved / rejected since start</div>
+            </div>
+            <div class="card tile">
+                <div class="label">Failed sign-ins</div>
+                <div class="value" id="m-login-fail" th:text="${snapshot.loginFailures}">0</div>
+                <div class="hint">since start on this pod</div>
+            </div>
+        </section>
+
+        <section class="grid halves">
+            <div class="card">
+                <h2>Health checks</h2>
+                <p class="sub">Spring Boot Actuator health components (used by Kubernetes probes)</p>
+                <table>
+                    <thead><tr><th>Component</th><th>Status</th></tr></thead>
+                    <tbody id="m-components">
+                    <tr th:each="c : ${snapshot.components}">
+                        <td class="mono" th:text="${c.name}">db</td>
+                        <td><span class="pill" th:classappend="${c.status == 'UP'} ? 'good' : 'critical'" th:text="${c.status}">UP</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h2>Build</h2>
+                <p class="sub">What is running right now</p>
+                <dl class="kv">
+                    <dt>Version</dt><dd th:text="${snapshot.version}">1.0.0</dd>
+                    <dt>Image tag</dt><dd class="mono" th:text="${#strings.isEmpty(snapshot.imageTag)} ? '-' : ${snapshot.imageTag}">-</dd>
+                    <dt>Environment</dt><dd th:text="${snapshot.environment}">local</dd>
+                    <dt>Metrics</dt><dd><a th:href="@{/actuator/prometheus}" class="mono">/actuator/prometheus</a></dd>
+                    <dt>Probes</dt><dd class="mono"><a th:href="@{/actuator/health/liveness}">liveness</a> &middot; <a th:href="@{/actuator/health/readiness}">readiness</a></dd>
+                </dl>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Endpoint metrics</h2>
+            <p class="sub">Live Micrometer timers for the public API on this pod (in-memory, reset on restart)</p>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Method</th><th>URI</th><th>Status</th><th class="num">Count</th><th class="num">Avg ms</th><th class="num">Max ms</th></tr></thead>
+                    <tbody id="m-endpoints">
+                    <tr th:each="e : ${snapshot.endpoints}">
+                        <td class="mono" th:text="${e.method}">POST</td>
+                        <td class="mono" th:text="${e.uri}">/validate</td>
+                        <td th:text="${e.status}">200</td>
+                        <td class="num" th:text="${e.count}">0</td>
+                        <td class="num" th:text="${e.avgMs}">0</td>
+                        <td class="num" th:text="${e.maxMs}">0</td>
+                    </tr>
+                    <tr th:if="${snapshot.endpoints.isEmpty()}"><td colspan="6" class="empty">No API traffic on this pod yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/monitoring.js}"></script>
+</body>
+</html>

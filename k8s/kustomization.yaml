@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - deployment.yaml
+  - service.yaml
+  - pdb-hpa.yaml
+
+# The pipeline replaces newName/newTag with the image it has just built and pushed.
+images:
+  - name: finsecure-transaction-validator
+    newName: docker.io/YOUR_DOCKERHUB_USERNAME/finsecure-transaction-validator
+    newTag: "1.0.0"

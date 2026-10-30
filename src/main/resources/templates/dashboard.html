@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Dashboard')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <main class="main" id="dashboard" th:attr="data-window=${window}, data-endpoint=@{/dashboard/data}, data-log-url=@{/logs/}, data-zone=${zone}">
+        <div th:replace="~{fragments/layout :: topbar('API Dashboard')}"></div>
+
+        <div class="filters">
+            <div class="segmented" role="group" aria-label="Time window">
+                <a th:href="@{/dashboard(window='1h')}" th:classappend="${window == '1h'} ? 'active'">Last hour</a>
+                <a th:href="@{/dashboard(window='24h')}" th:classappend="${window == '24h'} ? 'active'">Last 24 hours</a>
+                <a th:href="@{/dashboard(window='7d')}" th:classappend="${window == '7d'} ? 'active'">Last 7 days</a>
+            </div>
+            <span class="tile hint" id="refreshed">Auto-refresh every 15 seconds</span>
+        </div>
+
+        <section class="grid tiles">
+            <div class="card tile">
+                <div class="label">API requests</div>
+                <div class="value" id="t-total" th:text="${#numbers.formatInteger(stats.totalRequests, 1, 'COMMA')}">0</div>
+                <div class="hint"><span id="t-alltime" th:text="${#numbers.formatInteger(stats.allTimeRequests, 1, 'COMMA')}">0</span> stored in total</div>
+            </div>
+            <div class="card tile">
+                <div class="label">Success rate</div>
+                <div class="value"><span id="t-success" th:text="${stats.successRate}">100</span>%</div>
+                <div class="hint">Non-4xx/5xx responses</div>
+            </div>
+            <div class="card tile">
+                <div class="label">Avg response time</div>
+                <div class="value"><span id="t-avg" th:text="${stats.averageMs}">0</span> ms</div>
+                <div class="hint">Max <span id="t-max" th:text="${stats.maxMs}">0</span> ms</div>
+            </div>
+            <div class="card tile">
+                <div class="label">Server errors (5xx)</div>
+                <div class="value" id="t-5xx" th:text="${stats.serverErrors}">0</div>
+                <div class="hint"><span id="t-4xx" th:text="${stats.clientErrors}">0</span> client errors (4xx)</div>
+            </div>
+        </section>
+
+        <section class="grid two">
+            <div class="card">
+                <h2>Requests over time</h2>
+                <p class="sub">Number of logged API calls per interval</p>
+                <div class="chart" id="timeline-chart" aria-describedby="timeline-table"></div>
+                <div class="view-toggle"><a href="#" id="timeline-toggle">Show as table</a></div>
+                <div class="table-wrap" id="timeline-table" hidden></div>
+            </div>
+            <div class="card">
+                <h2>Validation outcomes</h2>
+                <p class="sub">Approved vs rejected transactions</p>
+                <div class="tile">
+                    <div class="value"><span id="t-approval" th:text="${stats.approvalRate}">0</span>%</div>
+                    <div class="hint">approval rate</div>
+                </div>
+                <div class="split-meter" id="split-meter" role="img" aria-label="Approved vs rejected">
+                    <span class="s1" id="split-approved" style="width:0"></span>
+                    <span class="s2" id="split-rejected" style="width:0"></span>
+                </div>
+                <div class="legend">
+                    <span><i class="s1"></i>Approved <strong id="t-approved" th:text="${stats.approved}">0</strong></span>
+                    <span><i class="s2"></i>Rejected <strong id="t-rejected" th:text="${stats.rejected}">0</strong></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid halves">
+            <div class="card">
+                <h2>Status codes</h2>
+                <p class="sub">Responses by HTTP status in the selected window</p>
+                <div class="hbars" th:if="${!stats.statusBreakdown.isEmpty()}">
+                    <div class="hbar-row" th:each="s : ${stats.statusBreakdown}"
+                         th:with="pct=${stats.totalRequests == 0 ? 0 : s.value * 100 / stats.totalRequests}">
+                        <span class="name">
+                            <span class="pill" th:classappend="${s.key >= 500} ? 'critical' : (${s.key >= 400} ? 'warning' : 'good')"
+                                  th:text="${s.key}">200</span>
+                        </span>
+                        <span class="track"><span class="fill" th:style="'width:' + ${pct} + '%'"></span></span>
+                        <span class="count" th:text="${s.value}">0</span>
+                    </div>
+                </div>
+                <div class="empty" th:if="${stats.statusBreakdown.isEmpty()}">No requests in this window.</div>
+            </div>
+            <div class="card">
+                <h2>Endpoints</h2>
+                <p class="sub">Call volume and average latency</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Method</th><th>Path</th><th class="num">Calls</th><th class="num">Avg ms</th></tr></thead>
+                        <tbody>
+                        <tr th:each="e : ${stats.endpoints}">
+                            <td class="mono" th:text="${e.method}">POST</td>
+                            <td class="mono"><a th:href="@{/logs(path=${e.path})}" th:text="${e.path}">/validate</a></td>
+                            <td class="num" th:text="${e.count}">0</td>
+                            <td class="num" th:text="${e.averageMs}">0</td>
+                        </tr>
+                        <tr th:if="${stats.endpoints.isEmpty()}"><td colspan="4" class="empty">No requests in this window.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Latest requests</h2>
+            <p class="sub">The 10 most recent API calls. <a th:href="@{/logs}">View all logs</a></p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Outcome</th><th>Transaction</th><th class="num">ms</th><th>Pod</th></tr>
+                    </thead>
+                    <tbody id="recent-rows">
+                    <tr th:each="r : ${stats.recent}">
+                        <td><a th:href="@{/logs/{id}(id=${r.id})}" th:text="${@timeFormat.brief(r.createdAt)}">time</a></td>
+                        <td class="mono" th:text="${r.method}">POST</td>
+                        <td class="mono" th:text="${r.path}">/validate</td>
+                        <td><span class="pill" th:classappend="${r.statusCode >= 500} ? 'critical' : (${r.statusCode >= 400} ? 'warning' : 'good')" th:text="${r.statusCode}">200</span></td>
+                        <td th:text="${r.outcome}">OK</td>
+                        <td class="mono" th:text="${r.transactionId}"></td>
+                        <td class="num" th:text="${r.durationMs}">0</td>
+                        <td class="mono" th:text="${r.podName}"></td>
+                    </tr>
+                    <tr th:if="${stats.recent.isEmpty()}"><td colspan="8" class="empty">No API requests recorded yet. Try the API Tester.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<script th:src="@{/js/charts.js}"></script>
+<script th:src="@{/js/dashboard.js}"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('API Request Logs')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <main class="main">
+        <div th:replace="~{fragments/layout :: topbar('API Request Logs')}"></div>
+
+        <section class="card">
+            <form class="filters" th:action="@{/logs}" method="get" th:object="${criteria}">
+                <div class="field">
+                    <label for="q">Search</label>
+                    <input id="q" th:field="*{q}" type="search" placeholder="Request ID, transaction ID, IP">
+                </div>
+                <div class="field">
+                    <label for="path">Endpoint</label>
+                    <select id="path" th:field="*{path}">
+                        <option value="">All</option>
+                        <option th:each="p : ${paths}" th:value="${p}" th:text="${p}"></option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="method">Method</label>
+                    <select id="method" th:field="*{method}">
+                        <option value="">All</option>
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="statusGroup">Status</label>
+                    <select id="statusGroup" th:field="*{statusGroup}">
+                        <option value="">All</option>
+                        <option value="2xx">2xx Success</option>
+                        <option value="4xx">4xx Client error</option>
+                        <option value="5xx">5xx Server error</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="outcome">Outcome</label>
+                    <select id="outcome" th:field="*{outcome}">
+                        <option value="">All</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="OK">OK</option>
+                        <option value="FAILED">Failed</option>
+                        <option value="ERROR">Error</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="from">From</label>
+                    <input id="from" th:field="*{from}" type="date">
+                </div>
+                <div class="field">
+                    <label for="to">To</label>
+                    <input id="to" th:field="*{to}" type="date">
+                </div>
+                <button type="submit" class="btn">Filter</button>
+                <a class="btn secondary" th:href="@{/logs}">Reset</a>
+                <a class="btn secondary"
+                   th:href="@{/logs/export(q=${criteria.q}, path=${criteria.path}, method=${criteria.method}, statusGroup=${criteria.statusGroup}, outcome=${criteria.outcome}, from=${criteria.from}, to=${criteria.to})}">Export CSV</a>
+            </form>
+
+            <p class="sub" th:text="${page.totalElements} + ' matching requests'">0 matching requests</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Request ID</th>
+                        <th>Method</th>
+                        <th>Path</th>
+                        <th>Status</th>
+                        <th>Outcome</th>
+                        <th>Transaction</th>
+                        <th class="num">Duration (ms)</th>
+                        <th>Client IP</th>
+                        <th>Pod</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${page.content}">
+                        <td th:text="${@timeFormat.brief(r.createdAt)}">time</td>
+                        <td class="mono"><a th:href="@{/logs/{id}(id=${r.id})}" th:text="${#strings.substring(r.requestId, 0, 8)}">id</a></td>
+                        <td class="mono" th:text="${r.method}">POST</td>
+                        <td class="mono" th:text="${r.path}">/validate</td>
+                        <td><span class="pill" th:classappend="${r.statusCode >= 500} ? 'critical' : (${r.statusCode >= 400} ? 'warning' : 'good')" th:text="${r.statusCode}">200</span></td>
+                        <td th:text="${r.outcome}">OK</td>
+                        <td class="mono" th:text="${r.transactionId}"></td>
+                        <td class="num" th:text="${r.durationMs}">0</td>
+                        <td class="mono" th:text="${r.clientIp}"></td>
+                        <td class="mono" th:text="${r.podName}"></td>
+                    </tr>
+                    <tr th:if="${page.content.isEmpty()}"><td colspan="10" class="empty">No requests match these filters.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" th:if="${page.totalPages > 1}">
+                <a class="btn secondary" th:if="${page.hasPrevious()}"
+                   th:href="@{/logs(page=${page.number - 1}, size=${page.size}, q=${criteria.q}, path=${criteria.path}, method=${criteria.method}, statusGroup=${criteria.statusGroup}, outcome=${criteria.outcome}, from=${criteria.from}, to=${criteria.to})}">Previous</a>
+                <span th:text="'Page ' + ${page.number + 1} + ' of ' + ${page.totalPages}">Page 1 of 1</span>
+                <a class="btn secondary" th:if="${page.hasNext()}"
+                   th:href="@{/logs(page=${page.number + 1}, size=${page.size}, q=${criteria.q}, path=${criteria.path}, method=${criteria.method}, statusGroup=${criteria.statusGroup}, outcome=${criteria.outcome}, from=${criteria.from}, to=${criteria.to})}">Next</a>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

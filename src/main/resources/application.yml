@@ -1,0 +1,103 @@
+spring:
+  application:
+    name: transaction-validator
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:finsecure;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 5000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  h2:
+    console:
+      enabled: false
+  thymeleaf:
+    cache: true
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        same-site: lax
+  error:
+    include-stacktrace: never
+    include-message: never
+
+app:
+  name: FinSecure Pay Transaction Validator
+  version: '@project.version@'
+  environment: ${APP_ENVIRONMENT:local}
+  image-tag: ${IMAGE_TAG:}
+  pod-name: ${POD_NAME:${HOSTNAME:local}}
+  timezone: ${APP_TIMEZONE:Asia/Singapore}
+  prometheus-url: ${PROMETHEUS_URL:}
+  grafana-url: ${GRAFANA_URL:}
+  max-logged-body-length: 4000
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:}
+
+finsecure:
+  validation:
+    min-amount: ${VALIDATION_MIN_AMOUNT:0.01}
+    max-amount: ${VALIDATION_MAX_AMOUNT:10000.00}
+    high-risk-amount: ${VALIDATION_HIGH_RISK_AMOUNT:5000.00}
+    allowed-currencies: ${VALIDATION_ALLOWED_CURRENCIES:SGD,USD,EUR,GBP,MYR}
+    blocked-countries: ${VALIDATION_BLOCKED_COUNTRIES:KP,IR,SY}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        readiness:
+          include: readinessState,db
+  info:
+    env:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      pod: ${app.pod-name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 100ms,250ms,500ms,1s
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+info:
+  app:
+    name: ${app.name}
+    version: ${app.version}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p [%X{requestId:-}] %-40.40logger{39} : %m%n"
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN

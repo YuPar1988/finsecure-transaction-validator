@@ -1,0 +1,52 @@
+# Build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+!.mvn/wrapper/*.jar
+*.log
+logs/
+
+# IDE / editor
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+
+# Secrets and local environment
+.env
+*.env
+!.env.example
+secrets/
+*.pem
+*.key
+kubeconfig*
+k8s/secret.yaml
+
+# Assignment evidence, screenshots, reports and local helper scripts (kept out of the repository)
+evidence/
+screenshots/
+docs-private/
+local/
+reports/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.docx
+*.pptx
+*.pdf
+dependency-check-report.*
+trivy-report.*

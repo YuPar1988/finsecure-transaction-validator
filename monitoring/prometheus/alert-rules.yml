@@ -1,0 +1,55 @@
+groups:
+  - name: finsecure-transaction-validator
+    rules:
+      - alert: FinSecureAppDown
+        expr: up{job=~"finsecure.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Transaction validator instance {{ $labels.instance }} is down"
+          description: "Prometheus has not been able to scrape {{ $labels.instance }} for more than 1 minute."
+
+      - alert: HighTransactionRejectionRate
+        expr: |
+          sum(rate(finsecure_transactions_total{result="rejected"}[2m]))
+            / clamp_min(sum(rate(finsecure_transactions_total[2m])), 0.0001) > 0.5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 50% of transactions are being rejected"
+          description: "Rejection rate is {{ $value | humanizePercentage }} over the last 2 minutes. Check the API request log for the failing rule codes."
+
+      - alert: HighServerErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{uri=~"/validate|/health", status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_server_requests_seconds_count{uri=~"/validate|/health"}[5m])), 0.0001) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 5xx error rate above 5%"
+          description: "Server error ratio is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: SlowValidateResponses
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket{uri="/validate"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "/validate p95 latency above 1 second"
+          description: "95th percentile latency is {{ $value | humanizeDuration }}."
+
+      - alert: HighJvmHeapUsage
+        expr: |
+          sum by (pod) (jvm_memory_used_bytes{area="heap", application="transaction-validator"})
+            / sum by (pod) (jvm_memory_max_bytes{area="heap", application="transaction-validator"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Heap usage above 85% on {{ $labels.pod }}"
+          description: "Heap usage is {{ $value | humanizePercentage }}."

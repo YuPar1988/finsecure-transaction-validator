@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finsecure-config
+  namespace: finsecure
+  labels:
+    app.kubernetes.io/name: transaction-validator
+data:
+  APP_ENVIRONMENT: "production"
+  APP_TIMEZONE: "Asia/Singapore"
+  DB_URL: "jdbc:postgresql://postgres.finsecure.svc.cluster.local:5432/finsecure"
+  DB_POOL_SIZE: "10"
+  VALIDATION_MIN_AMOUNT: "0.01"
+  VALIDATION_MAX_AMOUNT: "10000.00"
+  VALIDATION_HIGH_RISK_AMOUNT: "5000.00"
+  VALIDATION_ALLOWED_CURRENCIES: "SGD,USD,EUR,GBP,MYR"
+  VALIDATION_BLOCKED_COUNTRIES: "KP,IR,SY"
+  PROMETHEUS_URL: ""
+  GRAFANA_URL: ""

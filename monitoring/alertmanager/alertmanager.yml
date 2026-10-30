@@ -1,0 +1,22 @@
+# Email settings for local docker-compose runs.
+# Replace the two addresses below and put the SMTP app password in secrets/smtp_password
+# (that folder is git-ignored). For Gmail, create an App Password under Google Account > Security.
+global:
+  smtp_smarthost: smtp.gmail.com:587
+  smtp_from: your-sender-address@gmail.com
+  smtp_auth_username: your-sender-address@gmail.com
+  smtp_auth_password_file: /etc/alertmanager/secrets/smtp_password
+  smtp_require_tls: true
+
+route:
+  receiver: ops-email
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 2m
+  repeat_interval: 1h
+
+receivers:
+  - name: ops-email
+    email_configs:
+      - to: your-ops-inbox@gmail.com
+        send_resolved: true

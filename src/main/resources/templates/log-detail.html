@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Request detail')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+    <main class="main">
+        <div th:replace="~{fragments/layout :: topbar('Request detail')}"></div>
+        <p><a th:href="@{/logs}">&larr; Back to request logs</a></p>
+
+        <section class="grid halves">
+            <div class="card">
+                <h2>Summary</h2>
+                <p class="sub">Stored in the api_request_log table</p>
+                <dl class="kv">
+                    <dt>Log ID</dt><dd th:text="${entry.id}">1</dd>
+                    <dt>Request ID</dt><dd class="mono" th:text="${entry.requestId}">id</dd>
+                    <dt>Time</dt><dd th:text="${@timeFormat.format(entry.createdAt)}">time</dd>
+                    <dt>Method</dt><dd class="mono" th:text="${entry.method}">POST</dd>
+                    <dt>Path</dt><dd class="mono" th:text="${entry.path + (entry.queryString != null ? '?' + entry.queryString : '')}">/validate</dd>
+                    <dt>Status</dt>
+                    <dd><span class="pill" th:classappend="${entry.statusCode >= 500} ? 'critical' : (${entry.statusCode >= 400} ? 'warning' : 'good')" th:text="${entry.statusCode}">200</span></dd>
+                    <dt>Outcome</dt><dd th:text="${entry.outcome}">OK</dd>
+                    <dt>Transaction ID</dt><dd class="mono" th:text="${entry.transactionId ?: '-'}">-</dd>
+                    <dt>Duration</dt><dd th:text="${entry.durationMs} + ' ms'">0 ms</dd>
+                </dl>
+            </div>
+            <div class="card">
+                <h2>Client and server</h2>
+                <p class="sub">Where the request came from and which pod handled it</p>
+                <dl class="kv">
+                    <dt>Client IP</dt><dd class="mono" th:text="${entry.clientIp}">127.0.0.1</dd>
+                    <dt>User agent</dt><dd th:text="${entry.userAgent ?: '-'}">-</dd>
+                    <dt>Pod</dt><dd class="mono" th:text="${entry.podName}">local</dd>
+                </dl>
+            </div>
+        </section>
+
+        <section class="grid halves">
+            <div class="card">
+                <h2>Request body</h2>
+                <p class="sub">Account numbers are masked before storage</p>
+                <pre class="code" th:text="${entry.requestBody ?: '(empty)'}"></pre>
+            </div>
+            <div class="card">
+                <h2>Response body</h2>
+                <p class="sub">Returned to the client</p>
+                <pre class="code" th:text="${entry.responseBody ?: '(empty)'}"></pre>
+            </div>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/pretty.js}"></script>
+</body>
+</html>

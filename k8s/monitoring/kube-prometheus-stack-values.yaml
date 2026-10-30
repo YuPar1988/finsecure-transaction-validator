@@ -1,0 +1,64 @@
+# Values for the prometheus-community/kube-prometheus-stack Helm chart.
+#
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   kubectl create namespace monitoring
+#   kubectl -n monitoring create secret generic alertmanager-smtp --from-literal=password='<smtp-app-password>'
+#   kubectl -n monitoring create secret generic grafana-admin \
+#     --from-literal=admin-user=admin --from-literal=admin-password='<strong-password>'
+#   helm install monitoring prometheus-community/kube-prometheus-stack -n monitoring \
+#     -f k8s/monitoring/kube-prometheus-stack-values.yaml \
+#     --set alertmanager.config.global.smtp_from=<sender@gmail.com> \
+#     --set alertmanager.config.global.smtp_auth_username=<sender@gmail.com> \
+#     --set "alertmanager.config.receivers[1].email_configs[0].to=<ops-inbox@gmail.com>"
+
+grafana:
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  service:
+    type: LoadBalancer
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+
+prometheus:
+  service:
+    type: ClusterIP
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 7d
+
+alertmanager:
+  alertmanagerSpec:
+    secrets:
+      - alertmanager-smtp
+  config:
+    global:
+      smtp_smarthost: smtp.gmail.com:587
+      smtp_from: sender@example.com
+      smtp_auth_username: sender@example.com
+      smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp/password
+      smtp_require_tls: true
+    route:
+      receiver: "null"
+      group_by: [alertname, namespace]
+      group_wait: 30s
+      group_interval: 2m
+      repeat_interval: 1h
+      routes:
+        - receiver: ops-email
+          matchers:
+            - namespace = "finsecure"
+        - receiver: ops-email
+          matchers:
+            - alertname =~ "FinSecure.*|HighTransactionRejectionRate|HighServerErrorRate|SlowValidateResponses|HighJvmHeapUsage"
+    receivers:
+      - name: "null"
+      - name: ops-email
+        email_configs:
+          - to: ops@example.com
+            send_resolved: true
