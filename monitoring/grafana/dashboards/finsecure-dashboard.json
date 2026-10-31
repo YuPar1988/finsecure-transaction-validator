@@ -1,199 +1,633 @@
 {
-  "uid": "finsecure-api",
-  "title": "FinSecure Pay - Transaction Validator",
-  "tags": ["finsecure", "spring-boot"],
-  "timezone": "browser",
-  "schemaVersion": 39,
-  "version": 1,
-  "refresh": "10s",
-  "time": { "from": "now-30m", "to": "now" },
-  "templating": {
-    "list": [
-      {
-        "name": "datasource",
-        "label": "Data source",
-        "type": "datasource",
-        "query": "prometheus",
-        "current": {},
-        "hide": 0
-      }
-    ]
-  },
-  "panels": [
-    {
-      "id": 1,
-      "type": "stat",
-      "title": "Instances up",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "count(up{job=~\"finsecure.*\"} == 1) or vector(0)" }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "#d03b3b", "value": null },
-            { "color": "#fab219", "value": 1 },
-            { "color": "#0ca30c", "value": 2 }
-          ] }
-        },
-        "overrides": []
-      },
-      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
-    },
-    {
-      "id": 2,
-      "type": "stat",
-      "title": "API requests per second",
-      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count{uri=~\"/validate|/health\"}[1m])) or vector(0)" }
-      ],
-      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "#2a78d6" } }, "overrides": [] },
-      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
-    },
-    {
-      "id": 3,
-      "type": "stat",
-      "title": "Transaction rejection rate (2m)",
-      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "(sum(rate(finsecure_transactions_total{result=\"rejected\"}[2m])) / clamp_min(sum(rate(finsecure_transactions_total[2m])), 0.0001)) or vector(0)" }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "decimals": 1,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "#0ca30c", "value": null },
-            { "color": "#fab219", "value": 0.3 },
-            { "color": "#d03b3b", "value": 0.5 }
-          ] }
-        },
-        "overrides": []
-      },
-      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
-    },
-    {
-      "id": 4,
-      "type": "stat",
-      "title": "/validate p95 latency",
-      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/validate\"}[5m])))" }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 3,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "#0ca30c", "value": null },
-            { "color": "#fab219", "value": 0.5 },
-            { "color": "#d03b3b", "value": 1 }
-          ] }
-        },
-        "overrides": []
-      },
-      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
-    },
-    {
-      "id": 5,
-      "type": "timeseries",
-      "title": "/validate requests per second by HTTP status",
-      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "sum by (status) (rate(http_server_requests_seconds_count{uri=\"/validate\"}[1m]))", "legendFormat": "HTTP {{status}}" }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "HTTP 200" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#2a78d6" } } ] },
-          { "matcher": { "id": "byName", "options": "HTTP 422" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#eb6834" } } ] },
-          { "matcher": { "id": "byName", "options": "HTTP 400" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1baf7a" } } ] }
-        ]
-      },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
-    },
-    {
-      "id": 6,
-      "type": "timeseries",
-      "title": "Transactions per minute (approved vs rejected)",
-      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "sum by (result) (rate(finsecure_transactions_total[1m])) * 60", "legendFormat": "{{result}}" }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "none", "custom": { "lineWidth": 2, "fillOpacity": 10 } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "approved" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#2a78d6" } } ] },
-          { "matcher": { "id": "byName", "options": "rejected" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#eb6834" } } ] }
-        ]
-      },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
-    },
-    {
-      "id": 7,
-      "type": "timeseries",
-      "title": "/validate latency percentiles",
-      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/validate\"}[5m])))", "legendFormat": "p50" },
-        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/validate\"}[5m])))", "legendFormat": "p95" },
-        { "refId": "C", "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/validate\"}[5m])))", "legendFormat": "p99" }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "s", "custom": { "lineWidth": 2 } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "p50" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#2a78d6" } } ] },
-          { "matcher": { "id": "byName", "options": "p95" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#eb6834" } } ] },
-          { "matcher": { "id": "byName", "options": "p99" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "#1baf7a" } } ] }
-        ]
-      },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
-    },
-    {
-      "id": 8,
-      "type": "barchart",
-      "title": "Rejection reasons (last 15m)",
-      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "sort_desc(sum by (code) (increase(finsecure_validation_errors_total[15m])))", "legendFormat": "{{code}}", "instant": true, "format": "table" }
-      ],
-      "transformations": [ { "id": "reduce", "options": { "reducers": ["lastNotNull"], "mode": "seriesToRows" } } ],
-      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "fixed", "fixedColor": "#2a78d6" } }, "overrides": [] },
-      "options": { "orientation": "horizontal", "showValue": "auto", "legend": { "showLegend": false }, "xTickLabelRotation": 0 }
-    },
-    {
-      "id": 9,
-      "type": "timeseries",
-      "title": "JVM heap used by pod",
-      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "sum by (pod) (jvm_memory_used_bytes{area=\"heap\", application=\"transaction-validator\"})", "legendFormat": "{{pod}}" }
-      ],
-      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2 } }, "overrides": [] },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
-    },
-    {
-      "id": 10,
-      "type": "timeseries",
-      "title": "Process CPU usage by pod",
-      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "targets": [
-        { "refId": "A", "expr": "process_cpu_usage{application=\"transaction-validator\"}", "legendFormat": "{{pod}}" }
-      ],
-      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "custom": { "lineWidth": 2 } }, "overrides": [] },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
-    }
-  ]
+    "uid":  "finsecure-api",
+    "title":  "FinSecure Pay - Transaction Validator",
+    "tags":  [
+                 "finsecure",
+                 "spring-boot"
+             ],
+    "timezone":  "browser",
+    "schemaVersion":  39,
+    "version":  1,
+    "refresh":  "10s",
+    "time":  {
+                 "from":  "now-30m",
+                 "to":  "now"
+             },
+    "templating":  {
+                       "list":  [
+                                    {
+                                        "name":  "datasource",
+                                        "label":  "Data source",
+                                        "type":  "datasource",
+                                        "query":  "prometheus",
+                                        "current":  {
+
+                                                    },
+                                        "hide":  0
+                                    }
+                                ]
+                   },
+    "panels":  [
+                   {
+                       "id":  1,
+                       "type":  "stat",
+                       "title":  "Instances up",
+                       "gridPos":  {
+                                       "x":  0,
+                                       "y":  0,
+                                       "w":  6,
+                                       "h":  4
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "count(up{job=~\"finsecure.*\"} == 1) or vector(0)"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none",
+                                                            "thresholds":  {
+                                                                               "mode":  "absolute",
+                                                                               "steps":  [
+                                                                                             {
+                                                                                                 "color":  "#d03b3b",
+                                                                                                 "value":  null
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "#fab219",
+                                                                                                 "value":  1
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "#0ca30c",
+                                                                                                 "value":  2
+                                                                                             }
+                                                                                         ]
+                                                                           }
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "options":  {
+                                       "colorMode":  "value",
+                                       "graphMode":  "none",
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "lastNotNull"
+                                                                       ]
+                                                         }
+                                   }
+                   },
+                   {
+                       "id":  2,
+                       "type":  "stat",
+                       "title":  "API requests per second",
+                       "gridPos":  {
+                                       "x":  6,
+                                       "y":  0,
+                                       "w":  6,
+                                       "h":  4
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "sum(rate(http_server_requests_seconds_count{uri=~\"/validate|/health\"}[1m])) or vector(0)"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "reqps",
+                                                            "decimals":  2,
+                                                            "color":  {
+                                                                          "mode":  "fixed",
+                                                                          "fixedColor":  "#2a78d6"
+                                                                      }
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "options":  {
+                                       "colorMode":  "value",
+                                       "graphMode":  "area",
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "lastNotNull"
+                                                                       ]
+                                                         }
+                                   }
+                   },
+                   {
+                       "id":  3,
+                       "type":  "stat",
+                       "title":  "Transaction rejection rate (2m)",
+                       "gridPos":  {
+                                       "x":  12,
+                                       "y":  0,
+                                       "w":  6,
+                                       "h":  4
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "(sum(rate(finsecure_transactions_total{result=\"rejected\"}[2m])) / clamp_min(sum(rate(finsecure_transactions_total[2m])), 0.0001)) or vector(0)"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "percentunit",
+                                                            "decimals":  1,
+                                                            "thresholds":  {
+                                                                               "mode":  "absolute",
+                                                                               "steps":  [
+                                                                                             {
+                                                                                                 "color":  "#0ca30c",
+                                                                                                 "value":  null
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "#fab219",
+                                                                                                 "value":  0.3
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "#d03b3b",
+                                                                                                 "value":  0.5
+                                                                                             }
+                                                                                         ]
+                                                                           }
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "options":  {
+                                       "colorMode":  "value",
+                                       "graphMode":  "area",
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "lastNotNull"
+                                                                       ]
+                                                         }
+                                   }
+                   },
+                   {
+                       "id":  4,
+                       "type":  "stat",
+                       "title":  "/validate p95 latency",
+                       "gridPos":  {
+                                       "x":  18,
+                                       "y":  0,
+                                       "w":  6,
+                                       "h":  4
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/validate\"}[5m])))"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s",
+                                                            "decimals":  3,
+                                                            "thresholds":  {
+                                                                               "mode":  "absolute",
+                                                                               "steps":  [
+                                                                                             {
+                                                                                                 "color":  "#0ca30c",
+                                                                                                 "value":  null
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "#fab219",
+                                                                                                 "value":  0.5
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "#d03b3b",
+                                                                                                 "value":  1
+                                                                                             }
+                                                                                         ]
+                                                                           }
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "options":  {
+                                       "colorMode":  "value",
+                                       "graphMode":  "area",
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "lastNotNull"
+                                                                       ]
+                                                         }
+                                   }
+                   },
+                   {
+                       "id":  5,
+                       "type":  "timeseries",
+                       "title":  "/validate requests per second by HTTP status",
+                       "gridPos":  {
+                                       "x":  0,
+                                       "y":  4,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "sum by (status) (rate(http_server_requests_seconds_count{uri=\"/validate\"}[1m]))",
+                                           "legendFormat":  "HTTP {{status}}"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "reqps",
+                                                            "custom":  {
+                                                                           "lineWidth":  2,
+                                                                           "fillOpacity":  10
+                                                                       }
+                                                        },
+                                           "overrides":  [
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "HTTP 200"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "#2a78d6"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             },
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "HTTP 422"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "#eb6834"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             },
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "HTTP 400"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "#1baf7a"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             }
+                                                         ]
+                                       },
+                       "options":  {
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom"
+                                                  },
+                                       "tooltip":  {
+                                                       "mode":  "multi"
+                                                   }
+                                   }
+                   },
+                   {
+                       "id":  6,
+                       "type":  "timeseries",
+                       "title":  "Transactions per minute (approved vs rejected)",
+                       "gridPos":  {
+                                       "x":  12,
+                                       "y":  4,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "sum by (result) (rate(finsecure_transactions_total[1m])) * 60",
+                                           "legendFormat":  "{{result}}"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none",
+                                                            "custom":  {
+                                                                           "lineWidth":  2,
+                                                                           "fillOpacity":  10
+                                                                       }
+                                                        },
+                                           "overrides":  [
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "approved"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "#2a78d6"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             },
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "rejected"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "#eb6834"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             }
+                                                         ]
+                                       },
+                       "options":  {
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom"
+                                                  },
+                                       "tooltip":  {
+                                                       "mode":  "multi"
+                                                   }
+                                   }
+                   },
+                   {
+                       "id":  7,
+                       "type":  "timeseries",
+                       "title":  "/validate latency percentiles",
+                       "gridPos":  {
+                                       "x":  0,
+                                       "y":  12,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/validate\"}[5m])))",
+                                           "legendFormat":  "p50"
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "expr":  "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/validate\"}[5m])))",
+                                           "legendFormat":  "p95"
+                                       },
+                                       {
+                                           "refId":  "C",
+                                           "expr":  "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/validate\"}[5m])))",
+                                           "legendFormat":  "p99"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s",
+                                                            "custom":  {
+                                                                           "lineWidth":  2
+                                                                       }
+                                                        },
+                                           "overrides":  [
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "p50"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "#2a78d6"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             },
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "p95"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "#eb6834"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             },
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "p99"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "#1baf7a"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             }
+                                                         ]
+                                       },
+                       "options":  {
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom"
+                                                  },
+                                       "tooltip":  {
+                                                       "mode":  "multi"
+                                                   }
+                                   }
+                   },
+                   {
+                       "id":  8,
+                       "type":  "bargauge",
+                       "title":  "Rejection reasons (last 15m)",
+                       "gridPos":  {
+                                       "x":  12,
+                                       "y":  12,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "sort_desc(sum by (code) (increase(finsecure_validation_errors_total[15m])))",
+                                           "legendFormat":  "{{code}}",
+                                           "instant":  true
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none",
+                                                            "decimals":  0,
+                                                            "color":  {
+                                                                          "mode":  "fixed",
+                                                                          "fixedColor":  "#2a78d6"
+                                                                      },
+                                                            "min":  0
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "options":  {
+                                       "orientation":  "horizontal",
+                                       "displayMode":  "basic",
+                                       "showUnfilled":  true,
+                                       "valueMode":  "color",
+                                       "namePlacement":  "left",
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "lastNotNull"
+                                                                       ],
+                                                             "fields":  "",
+                                                             "values":  false
+                                                         }
+                                   }
+                   },
+                   {
+                       "id":  9,
+                       "type":  "timeseries",
+                       "title":  "JVM heap used by pod",
+                       "gridPos":  {
+                                       "x":  0,
+                                       "y":  20,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "sum by (pod) (jvm_memory_used_bytes{area=\"heap\", application=\"transaction-validator\"})",
+                                           "legendFormat":  "{{pod}}"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "bytes",
+                                                            "custom":  {
+                                                                           "lineWidth":  2
+                                                                       }
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "options":  {
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom"
+                                                  },
+                                       "tooltip":  {
+                                                       "mode":  "multi"
+                                                   }
+                                   }
+                   },
+                   {
+                       "id":  10,
+                       "type":  "timeseries",
+                       "title":  "Process CPU usage by pod",
+                       "gridPos":  {
+                                       "x":  12,
+                                       "y":  20,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "${datasource}"
+                                      },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "expr":  "process_cpu_usage{application=\"transaction-validator\"}",
+                                           "legendFormat":  "{{pod}}"
+                                       }
+                                   ],
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "percentunit",
+                                                            "max":  1,
+                                                            "custom":  {
+                                                                           "lineWidth":  2
+                                                                       }
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "options":  {
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom"
+                                                  },
+                                       "tooltip":  {
+                                                       "mode":  "multi"
+                                                   }
+                                   }
+                   }
+               ]
 }

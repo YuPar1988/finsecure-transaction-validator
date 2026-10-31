@@ -16,8 +16,9 @@ grafana:
     existingSecret: grafana-admin
     userKey: admin-user
     passwordKey: admin-password
+  # Not exposed publicly; open with: kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80
   service:
-    type: LoadBalancer
+    type: ClusterIP
   sidecar:
     dashboards:
       enabled: true
@@ -30,7 +31,13 @@ prometheus:
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
-    retention: 7d
+    retention: 3d
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
 
 alertmanager:
   alertmanagerSpec:
