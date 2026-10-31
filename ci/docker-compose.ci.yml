@@ -1,5 +1,12 @@
-# Local CI tooling: Jenkins (with Docker CLI and kubectl) and SonarQube.
-#   docker compose -f ci/docker-compose.ci.yml up -d --build
+# Local CI tooling: Jenkins (Docker CLI, Trivy, kubectl, AWS CLI) and SonarQube.
+#
+#   1. Put one file per secret in a folder outside the repository (see ci/README-secrets.md)
+#      and point JENKINS_SECRETS_DIR at it, e.g. in ci/.env (git-ignored):
+#        JENKINS_SECRETS_DIR=E:/path/to/jenkins-secrets
+#   2. docker compose -f ci/docker-compose.ci.yml up -d --build
+#
+#   Jenkins:   http://localhost:8081   (user admin, password from JENKINS_ADMIN_PASSWORD)
+#   SonarQube: http://localhost:9000
 name: finsecure-ci
 
 services:
@@ -11,9 +18,13 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
+      - maven_repo:/root/.m2
+      - ./jenkins/casc.yaml:/var/jenkins_home/casc/casc.yaml:ro
+      - ${JENKINS_SECRETS_DIR:?set JENKINS_SECRETS_DIR in ci/.env}:/run/secrets:ro
       - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      JAVA_OPTS: -Djenkins.install.runSetupWizard=true
+    depends_on:
+      - sonarqube
+    restart: unless-stopped
 
   sonarqube:
     image: sonarqube:community
@@ -24,8 +35,12 @@ services:
     volumes:
       - sonar_data:/opt/sonarqube/data
       - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+    restart: unless-stopped
 
 volumes:
   jenkins_home:
+  maven_repo:
   sonar_data:
   sonar_extensions:
+  sonar_logs:

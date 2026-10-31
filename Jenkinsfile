@@ -9,15 +9,16 @@ pipeline {
     }
 
     triggers {
-        // Poll as a fallback; a GitHub webhook triggers the job immediately when configured.
-        pollSCM('H/5 * * * *')
+        // Jenkins runs on a private network, so it polls GitHub for new commits.
+        // With a public Jenkins URL, a GitHub webhook can trigger builds instead.
+        pollSCM('H/2 * * * *')
     }
 
     parameters {
         choice(name: 'ACTION', choices: ['deploy', 'rollback'], description: 'deploy = full pipeline, rollback = roll the cluster back without building')
         string(name: 'ROLLBACK_REVISION', defaultValue: '', description: 'Deployment revision to roll back to (blank = previous revision)')
         booleanParam(name: 'RUN_SONAR', defaultValue: true, description: 'Run SonarQube analysis and wait for the quality gate')
-        booleanParam(name: 'RUN_DEPENDENCY_CHECK', defaultValue: true, description: 'Run OWASP Dependency-Check (fails on CVSS >= 7)')
+        booleanParam(name: 'RUN_OWASP_DEPENDENCY_CHECK', defaultValue: false, description: 'Also run OWASP Dependency-Check (needs the nvd-api-key credential; first run downloads the NVD database)')
         string(name: 'NOTIFY_EMAIL', defaultValue: '', description: 'Where build notifications are sent (blank = DEFAULT_RECIPIENTS from Email Extension settings)')
     }
 
@@ -26,6 +27,7 @@ pipeline {
         K8S_NAMESPACE    = 'finsecure'
         K8S_DEPLOYMENT   = 'transaction-validator'
         K8S_SERVICE      = 'finsecure-app'
+        AWS_DEFAULT_REGION = 'ap-southeast-2'
         TRIVY_CACHE      = "${env.JENKINS_HOME ?: env.WORKSPACE}/.trivy-cache"
         DC_DATA_DIR      = "${env.JENKINS_HOME ?: env.WORKSPACE}/.dependency-check-data"
     }
@@ -87,8 +89,35 @@ pipeline {
                         }
                     }
                 }
+                stage('Dependency Scan') {
+                    steps {
+                        // Software composition analysis of pom.xml and the packaged JAR.
+                        // The build fails on any fixable HIGH or CRITICAL vulnerability in a dependency.
+                        sh '''
+                            trivy fs \
+                              --cache-dir "${TRIVY_CACHE}" \
+                              --scanners vuln \
+                              --severity HIGH,CRITICAL \
+                              --ignore-unfixed \
+                              --ignorefile .trivyignore \
+                              --format table --output trivy-dependency-report.txt \
+                              --exit-code 1 \
+                              . || SCAN_FAILED=1
+                            cat trivy-dependency-report.txt
+                            if [ -n "${SCAN_FAILED}" ]; then
+                              echo "Security gate: HIGH/CRITICAL vulnerable dependencies found. Release blocked."
+                              exit 1
+                            fi
+                        '''
+                    }
+                    post {
+                        always {
+                            archiveArtifacts artifacts: 'trivy-dependency-report.txt', allowEmptyArchive: true
+                        }
+                    }
+                }
                 stage('OWASP Dependency-Check') {
-                    when { expression { params.RUN_DEPENDENCY_CHECK } }
+                    when { expression { params.RUN_OWASP_DEPENDENCY_CHECK } }
                     steps {
                         withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
                             sh './mvnw -B -Psecurity-scan dependency-check:check -DdataDirectory="${DC_DATA_DIR}"'
@@ -160,7 +189,9 @@ pipeline {
         stage('Deploy') {
             when { expression { params.ACTION == 'deploy' } }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
+                                 usernamePassword(credentialsId: 'aws-credentials',
+                                         usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
                         sed -i "s|newName: .*|newName: docker.io/${DOCKER_REPO}|; s|newTag: .*|newTag: \\"${IMAGE_TAG}\\"|" k8s/kustomization.yaml
                         kubectl apply -k k8s/
@@ -182,7 +213,9 @@ pipeline {
         stage('Smoke Test') {
             when { expression { params.ACTION == 'deploy' } }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
+                                 usernamePassword(credentialsId: 'aws-credentials',
+                                         usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
                         HOST=$(kubectl -n ${K8S_NAMESPACE} get svc ${K8S_SERVICE} -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
                         echo "Service address: ${HOST}"
@@ -203,7 +236,9 @@ pipeline {
         stage('Rollback') {
             when { expression { params.ACTION == 'rollback' } }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
+                                 usernamePassword(credentialsId: 'aws-credentials',
+                                         usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
                         kubectl -n ${K8S_NAMESPACE} rollout history deployment/${K8S_DEPLOYMENT}
                         if [ -n "${ROLLBACK_REVISION}" ]; then

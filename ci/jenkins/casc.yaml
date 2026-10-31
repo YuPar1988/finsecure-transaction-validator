@@ -1,0 +1,94 @@
+# Jenkins Configuration as Code.
+# ${NAME} values are read from files in /run/secrets (mounted from a folder outside the repository).
+jenkins:
+  systemMessage: "FinSecure Pay CI/CD"
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: DOCKERHUB_REPO
+            value: "${DOCKERHUB_USER}/finsecure-transaction-validator"
+          - key: AWS_DEFAULT_REGION
+            value: "ap-southeast-2"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: dockerhub-credentials
+              description: Docker Hub access token
+              username: "${DOCKERHUB_USER}"
+              password: "${DOCKERHUB_TOKEN}"
+          - usernamePassword:
+              scope: GLOBAL
+              id: aws-credentials
+              description: AWS access key for EKS deployments
+              username: "${AWS_ACCESS_KEY_ID}"
+              password: "${AWS_SECRET_ACCESS_KEY}"
+          - usernamePassword:
+              scope: GLOBAL
+              id: smtp-gmail
+              description: Gmail SMTP app password
+              username: "${SMTP_USER}"
+              password: "${SMTP_PASSWORD}"
+          - string:
+              scope: GLOBAL
+              id: sonar-token
+              description: SonarQube analysis token
+              secret: "${SONAR_TOKEN}"
+          - file:
+              scope: GLOBAL
+              id: kubeconfig
+              description: kubeconfig for the EKS cluster
+              fileName: kubeconfig
+              secretBytes: "${readFileBase64:/run/secrets/kubeconfig}"
+
+unclassified:
+  location:
+    url: "http://localhost:8081/"
+    adminAddress: "${SMTP_USER}"
+  email-ext:
+    mailAccount:
+      smtpHost: smtp.gmail.com
+      smtpPort: "587"
+      useTls: true
+      credentialsId: smtp-gmail
+    defaultRecipients: "${NOTIFY_EMAIL}"
+    defaultContentType: text/html
+    defaultSubject: "$PROJECT_NAME - Build # $BUILD_NUMBER - $BUILD_STATUS"
+  sonarGlobalConfiguration:
+    buildWrapperEnabled: true
+    installations:
+      - name: sonarqube
+        serverUrl: "http://sonarqube:9000"
+        credentialsId: sonar-token
+
+jobs:
+  - script: >
+      pipelineJob('finsecure-pipeline') {
+        description('Build, test, scan, containerise and deploy the FinSecure Pay transaction validator to EKS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/YuPar1988/finsecure-transaction-validator.git') }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }

@@ -50,3 +50,4 @@ reports/
 *.pdf
 dependency-check-report.*
 trivy-report.*
+trivy-*-report.*
