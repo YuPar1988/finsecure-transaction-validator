@@ -194,10 +194,15 @@ az aks create -g finsecure-rg -n finsecure-aks --node-count 2 --node-vm-size Sta
 az aks get-credentials -g finsecure-rg -n finsecure-aks
 ```
 
-AWS (EKS):
+AWS (EKS) – the cluster used for this project is defined in `k8s/cluster/eks-cluster.yaml`
+(2 × t3.medium in public subnets, no NAT gateway, EBS CSI driver and metrics-server add-ons):
 
 ```bash
-eksctl create cluster --name finsecure-eks --region ap-southeast-1 --nodes 2 --node-type t3.medium
+eksctl create cluster -f k8s/cluster/eks-cluster.yaml
+kubectl apply -f k8s/cluster/storageclass-gp3.yaml     # default storage class for the PostgreSQL volume
+
+# delete everything when finished
+eksctl delete cluster -f k8s/cluster/eks-cluster.yaml --disable-nodegroup-eviction
 ```
 
 Google Cloud (GKE):

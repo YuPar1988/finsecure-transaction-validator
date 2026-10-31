@@ -1,0 +1,46 @@
+# EKS cluster for the FinSecure Pay capstone.
+#   eksctl create cluster -f k8s/cluster/eks-cluster.yaml
+#   eksctl delete cluster -f k8s/cluster/eks-cluster.yaml --disable-nodegroup-eviction
+#
+# Cost notes: nodes run in public subnets so no NAT gateway is created,
+# and the node group is small (2 x t3.medium, can scale to 3).
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: finsecure-eks
+  region: ap-southeast-2
+  tags:
+    project: finsecure-capstone
+
+iam:
+  withOIDC: true
+
+vpc:
+  nat:
+    gateway: Disable
+  clusterEndpoints:
+    publicAccess: true
+    privateAccess: true
+
+addons:
+  - name: vpc-cni
+  - name: coredns
+  - name: kube-proxy
+  - name: metrics-server
+  - name: aws-ebs-csi-driver
+    wellKnownPolicies:
+      ebsCSIController: true
+
+managedNodeGroups:
+  - name: workers
+    instanceType: t3.medium
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 3
+    volumeSize: 20
+    privateNetworking: false
+    labels:
+      role: worker
+    tags:
+      project: finsecure-capstone
