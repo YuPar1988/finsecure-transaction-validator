@@ -13,8 +13,10 @@ metadata:
   tags:
     project: finsecure-capstone
 
+# OIDC/IRSA is not used: the AWS Free plan blocks IAM OIDC providers.
+# Add-ons that need AWS permissions (VPC CNI, EBS CSI) use the node role instead (see attachPolicyARNs).
 iam:
-  withOIDC: true
+  withOIDC: false
 
 vpc:
   nat:
@@ -29,8 +31,6 @@ addons:
   - name: kube-proxy
   - name: metrics-server
   - name: aws-ebs-csi-driver
-    wellKnownPolicies:
-      ebsCSIController: true
 
 managedNodeGroups:
   - name: workers
@@ -40,6 +40,12 @@ managedNodeGroups:
     maxSize: 3
     volumeSize: 20
     privateNetworking: false
+    iam:
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
     labels:
       role: worker
     tags:
