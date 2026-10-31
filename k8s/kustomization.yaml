@@ -13,4 +13,4 @@ resources:
 images:
   - name: finsecure-transaction-validator
     newName: docker.io/yupardocker/finsecure-transaction-validator
-    newTag: "1.0.0"
+    newTag: "1.0.1"

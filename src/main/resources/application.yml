@@ -19,6 +19,10 @@ spring:
   h2:
     console:
       enabled: false
+  session:
+    jdbc:
+      initialize-schema: always
+    timeout: 30m
   thymeleaf:
     cache: true
   jackson:
