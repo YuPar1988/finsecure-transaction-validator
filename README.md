@@ -284,10 +284,15 @@ Jenkins configuration:
 | Credential `nvd-api-key` | Secret text: NVD API key (free from nvd.nist.gov) |
 | Credential `sonar-token` | Secret text: SonarQube token, used by the SonarQube server entry |
 | Manage Jenkins → System → SonarQube servers | Name `sonarqube`, URL `http://sonarqube:9000`, token `sonar-token` |
-| SonarQube → Administration → Webhooks | `http://jenkins:8080/sonarqube-webhook/` (needed for the quality gate) |
 | Manage Jenkins → System → Extended E-mail Notification | SMTP server, port 587, TLS, SMTP credentials, default recipients |
 | Global environment variable `DOCKERHUB_REPO` | `<dockerhub-user>/finsecure-transaction-validator` |
-| Job | Pipeline from SCM → this GitHub repository, script path `Jenkinsfile`, trigger "GitHub hook trigger for GITScm polling" |
+| Job | Pipeline from SCM → this GitHub repository, script path `Jenkinsfile` |
+
+All of the above is applied automatically by Jenkins Configuration as Code (`ci/jenkins/casc.yaml`);
+secrets are read from files described in `ci/README-secrets.md`.
+
+The quality gate is checked by the pipeline itself (it polls the SonarQube API), so no SonarQube
+webhook is needed. New commits are picked up by SCM polling every 2 minutes.
 
 ## Security
 

@@ -84,8 +84,34 @@ pipeline {
                         withSonarQubeEnv('sonarqube') {
                             sh './mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectVersion=${IMAGE_TAG}'
                         }
-                        timeout(time: 10, unit: 'MINUTES') {
-                            waitForQualityGate abortPipeline: true
+                        // Jenkins polls SonarQube for the quality gate result (SonarQube blocks webhooks to
+                        // private network addresses, so the usual webhook callback is not used here).
+                        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                            timeout(time: 10, unit: 'MINUTES') {
+                                sh '''
+                                    REPORT=target/sonar/report-task.txt
+                                    SERVER=$(grep '^serverUrl=' $REPORT | cut -d= -f2-)
+                                    TASK=$(grep '^ceTaskId=' $REPORT | cut -d= -f2-)
+                                    while true; do
+                                      TASK_JSON=$(curl -fsS -u "${SONAR_TOKEN}:" "${SERVER}/api/ce/task?id=${TASK}")
+                                      STATUS=$(echo "$TASK_JSON" | grep -o '"status":"[A-Z_]*"' | head -1 | cut -d'"' -f4)
+                                      echo "SonarQube background task: ${STATUS}"
+                                      case "$STATUS" in
+                                        SUCCESS) break ;;
+                                        FAILED|CANCELED) echo "SonarQube analysis ${STATUS}"; exit 1 ;;
+                                      esac
+                                      sleep 5
+                                    done
+                                    ANALYSIS=$(echo "$TASK_JSON" | grep -o '"analysisId":"[^"]*"' | cut -d'"' -f4)
+                                    GATE=$(curl -fsS -u "${SONAR_TOKEN}:" "${SERVER}/api/qualitygates/project_status?analysisId=${ANALYSIS}" \
+                                           | grep -o '"projectStatus":{"status":"[A-Z]*"' | cut -d'"' -f6)
+                                    echo "Quality gate: ${GATE}"
+                                    if [ "$GATE" != "OK" ]; then
+                                      echo "Security gate: SonarQube quality gate failed. Release blocked."
+                                      exit 1
+                                    fi
+                                '''
+                            }
                         }
                     }
                 }
