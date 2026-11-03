@@ -19,11 +19,6 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Local tooling
-.claude/
-CLAUDE.md
-CLAUDE.local.md
-
 # Secrets and local environment
 .env
 *.env
