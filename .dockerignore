@@ -3,8 +3,6 @@ target/
 .gitignore
 .idea/
 .vscode/
-.claude/
-*.md
 k8s/
 monitoring/
 jenkins/
